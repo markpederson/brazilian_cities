@@ -1,0 +1,50 @@
+---
+title: "Inferring McDonalds's Geographic Strategy in the Brazilian Market"
+output: html_notebook
+---
+
+This is an attempt to infer the strategy employed by McDonalds in determining the sites for its Brazilian locations. We begin by loading the data:
+
+```{r}
+library(tidyverse)
+
+df = read.csv('data.csv', sep=';')
+ref = read.csv('reference.csv', sep=';')
+head(df)
+```
+
+```{r}
+length(mac_pops) / length(pops)
+```
+We observe that $~3%$ of cities in Brazil have a McDonalds location. Hence, the naive inference is that McDonalds locations are randomly assigned according to a Bernoulli($p$) process where we estimate $$\hat{p}=0.0298$$
+
+Turning to factors that may meaningfully influence the variable of interest, the most obvious choice is population (taken here as `IGBE_POP`). Unsurprisingly, the representatives of the subset of cities with McDonalds locations are larger than average: 
+```{r}
+mac_pops = df[!is.na(df$MAC),]$IBGE_POP
+pops = df[!is.na(df$IBGE_POP),]$IBGE_POP
+as.data.frame(cbind(
+  stat = c('mean', 'median', 'min', 'max'),
+  mac = c(mean(mac_pops), median(mac_pops), min(mac_pops), max(mac_pops)),
+  nomac = c(mean(pops), median(pops), min(pops), max(pops))
+))
+```
+
+However, we observe that population alone is not enough to infer the strategy:
+```{r}
+y = c()
+z = c()
+for (i in 1:length(mac_pops)) {
+  y = c(y, length(df[df$IBGE_POP>=sort(mac_pops)[i],]$CITY))
+  z = c(z, length(df[(df$IBGE_POP>=sort(mac_pops)[i] & !is.na(df$MAC)),]$CITY))
+}
+
+comp_df = as.data.frame(cbind(
+  x=1:length(mac_pops),
+  y=y,
+  z=z
+))
+
+comp_df$p = comp_df$z / comp_df$y
+
+ggplot(aes(x,1-p), data=comp_df) + geom_line(color='blue') + ggtitle('% of larger cities that do not have a mcdonalds')
+```
